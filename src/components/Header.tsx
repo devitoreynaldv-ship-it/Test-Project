@@ -1,10 +1,14 @@
 import React from 'react';
 import { Sliders, Egg } from 'lucide-react';
+import { FarmConfig } from '../types';
+import { FarmProfile } from './FarmProfile';
 
 interface HeaderProps {
   currentTab: string;
   onSelectTab: (tab: string) => void;
   unpaidCount: number;
+  config: FarmConfig;
+  onUpdateConfig: (newConfig: FarmConfig) => void;
   onOpenSettings: () => void;
 }
 
@@ -12,6 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onSelectTab,
   unpaidCount,
+  config,
+  onUpdateConfig,
   onOpenSettings,
 }) => {
   const navItems = [
@@ -24,18 +30,23 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-neutral-200">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-8 px-4 sm:px-6 lg:px-8">
-        {/* Zone 1: Brand Wordmark (Single element) */}
-        <div
-          onClick={() => onSelectTab('dashboard')}
-          className="flex items-center gap-2.5 cursor-pointer whitespace-nowrap shrink-0 group select-none"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs group-hover:bg-amber-600 transition">
-            <Egg className="h-5 w-5 fill-white/20" />
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 sm:gap-8 px-4 sm:px-6 lg:px-8">
+        {/* Zone 1: Brand Wordmark & Top-Left FarmProfile Quick Access */}
+        <div className="flex items-center gap-2.5 sm:gap-3 whitespace-nowrap shrink-0">
+          <div
+            onClick={() => onSelectTab('dashboard')}
+            className="flex items-center gap-2 cursor-pointer select-none group"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-500 text-white shadow-xs group-hover:bg-amber-600 transition">
+              <Egg className="h-5 w-5 fill-white/20" />
+            </div>
+            <span className="text-lg font-extrabold tracking-tight text-neutral-900 hidden md:inline">
+              Tr<span className="text-amber-600">egg</span>
+            </span>
           </div>
-          <span className="text-lg font-extrabold tracking-tight text-neutral-900">
-            Ovo<span className="text-amber-600">Track</span> Pro
-          </span>
+
+          {/* New FarmProfile Component in Top-Left Navigation Area */}
+          <FarmProfile config={config} onUpdateConfig={onUpdateConfig} />
         </div>
 
         {/* Zone 2: 4-5 Clean single-line text navigation links */}

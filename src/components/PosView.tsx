@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CartItem, EggGrade, FarmConfig, PaymentMethod, PaymentStatus, SaleTransaction, UnitType } from '../types';
+import React, { useState, useMemo } from 'react';
+import { CartItem, CustomerMaster, EggGrade, FarmConfig, PaymentMethod, PaymentStatus, SaleTransaction, UnitType } from '../types';
 import {
   calculateAgingStatus,
   cleanPhoneForWhatsApp,
@@ -31,6 +31,7 @@ interface PosViewProps {
   config: FarmConfig;
   currentStockKg: number;
   transactions: SaleTransaction[];
+  masterCustomers?: CustomerMaster[];
   onCompleteSale: (newTx: SaleTransaction) => void;
   onOpenReceipt: (tx: SaleTransaction) => void;
 }
@@ -39,6 +40,7 @@ export const PosView: React.FC<PosViewProps> = ({
   config,
   currentStockKg,
   transactions,
+  masterCustomers = [],
   onCompleteSale,
   onOpenReceipt,
 }) => {
@@ -71,15 +73,31 @@ export const PosView: React.FC<PosViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'LUNAS' | 'TEMPO'>('ALL');
 
-  // Customer suggestions from previous transactions
-  const uniqueCustomers = Array.from(
-    new Map(
-      transactions.map((t) => [
-        t.customerName.toLowerCase(),
-        { name: t.customerName, phone: t.customerPhone },
-      ])
-    ).values()
-  ).slice(0, 5);
+  // Customer suggestions prioritizing masterCustomers configured in Settings
+  const customerListSuggestions = useMemo(() => {
+    const list: { name: string; phone: string }[] = [];
+    const seen = new Set<string>();
+
+    if (masterCustomers && masterCustomers.length > 0) {
+      masterCustomers.forEach((mc) => {
+        const key = mc.name.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ name: mc.name, phone: mc.phone });
+        }
+      });
+    }
+
+    transactions.forEach((t) => {
+      const key = t.customerName.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({ name: t.customerName, phone: t.customerPhone });
+      }
+    });
+
+    return list.slice(0, 10);
+  }, [masterCustomers, transactions]);
 
   // Default price suggest based on grade & unit
   const handleGradeChange = (grade: EggGrade) => {
@@ -306,11 +324,11 @@ export const PosView: React.FC<PosViewProps> = ({
               </div>
             </div>
 
-            {/* Quick customer pickers */}
-            {uniqueCustomers.length > 0 && !customerName && (
+            {/* Quick customer pickers from Master Customers & Past Transactions */}
+            {customerListSuggestions.length > 0 && !customerName && (
               <div className="pt-1 flex flex-wrap items-center gap-1.5 text-xs">
                 <span className="text-[11px] text-neutral-400">Pilih cepat:</span>
-                {uniqueCustomers.map((cust, i) => (
+                {customerListSuggestions.map((cust, i) => (
                   <button
                     key={i}
                     type="button"
@@ -318,7 +336,7 @@ export const PosView: React.FC<PosViewProps> = ({
                       setCustomerName(cust.name);
                       setCustomerPhone(cust.phone);
                     }}
-                    className="rounded-lg bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-600 hover:bg-neutral-200 transition"
+                    className="rounded-lg bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-700 hover:bg-amber-100 hover:text-amber-900 transition"
                   >
                     {cust.name}
                   </button>

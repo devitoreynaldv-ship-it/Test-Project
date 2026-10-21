@@ -112,3 +112,11 @@ export interface FarmConfig {
   kgToButirRatio: number; // default 16
   trayCapacity: number; // default 30 butir
 }
+
+export interface CustomerMaster {
+  id: string;
+  name: string;
+  phone: string;
+  address?: string;
+  notes?: string;
+}

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
+  CustomerMaster,
   FarmConfig,
   HarvestLog,
   LossLog,
@@ -13,12 +14,25 @@ import {
   StockOpnameLog,
 } from './types';
 import {
-  INITIAL_CONFIG,
-  INITIAL_HARVEST_LOGS,
-  INITIAL_MUTATIONS,
-  INITIAL_TRANSACTIONS,
-} from './data/initialData';
-import { getTodayString } from './utils/eggConversions';
+  loadFarmConfig,
+  saveFarmConfig,
+  loadMasterCustomers,
+  saveMasterCustomers,
+  loadSalesTransactions,
+  saveSalesTransactions,
+  loadHarvestLogs,
+  saveHarvestLogs,
+  loadStockKg,
+  saveStockKg,
+  loadTotalLossButir,
+  saveTotalLossButir,
+  loadMutations,
+  saveMutations,
+  clearSpecificStoragePartition,
+  STORAGE_KEYS,
+  DEFAULT_MASTER_CUSTOMERS,
+} from './utils/storage';
+import { INITIAL_CONFIG, INITIAL_HARVEST_LOGS, INITIAL_MUTATIONS, INITIAL_TRANSACTIONS } from './data/initialData';
 import { Header } from './components/Header';
 import { DashboardView } from './components/DashboardView';
 import { PosView } from './components/PosView';
@@ -28,81 +42,48 @@ import { AuditLogView } from './components/AuditLogView';
 import { SettingsModal } from './components/SettingsModal';
 import { ThermalReceiptModal } from './components/ThermalReceiptModal';
 
-const STORAGE_KEY_CONFIG = 'ovotrack_config_v2';
-const STORAGE_KEY_TRANSACTIONS = 'ovotrack_transactions_v2';
-const STORAGE_KEY_HARVESTS = 'ovotrack_harvests_v2';
-const STORAGE_KEY_STOCK = 'ovotrack_stock_kg_v2';
-const STORAGE_KEY_LOSS = 'ovotrack_loss_butir_v2';
-const STORAGE_KEY_MUTATIONS = 'ovotrack_mutations_v2';
-
 export default function App() {
-  // 1. Core States with LocalStorage Initialization
-  const [config, setConfig] = useState<FarmConfig>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_CONFIG);
-    return saved ? JSON.parse(saved) : INITIAL_CONFIG;
-  });
-
-  const [transactions, setTransactions] = useState<SaleTransaction[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-  });
-
-  const [harvestLogs, setHarvestLogs] = useState<HarvestLog[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_HARVESTS);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 20) return parsed;
-      } catch {
-        // fallback
-      }
-    }
-    return INITIAL_HARVEST_LOGS;
-  });
-
-  const [currentStockKg, setCurrentStockKg] = useState<number>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_STOCK);
-    return saved ? parseFloat(saved) : 1680.0;
-  });
-
-  const [totalLossButir, setTotalLossButir] = useState<number>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_LOSS);
-    return saved ? parseInt(saved) : 38;
-  });
-
-  const [mutations, setMutations] = useState<StockMutation[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_MUTATIONS);
-    return saved ? JSON.parse(saved) : INITIAL_MUTATIONS;
-  });
+  // 1. Separated Modular Storage States
+  const [config, setConfig] = useState<FarmConfig>(loadFarmConfig);
+  const [masterCustomers, setMasterCustomers] = useState<CustomerMaster[]>(loadMasterCustomers);
+  const [transactions, setTransactions] = useState<SaleTransaction[]>(loadSalesTransactions);
+  const [harvestLogs, setHarvestLogs] = useState<HarvestLog[]>(loadHarvestLogs);
+  const [currentStockKg, setCurrentStockKg] = useState<number>(loadStockKg);
+  const [totalLossButir, setTotalLossButir] = useState<number>(loadTotalLossButir);
+  const [mutations, setMutations] = useState<StockMutation[]>(loadMutations);
 
   // 2. Navigation & UI States
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [receiptTx, setReceiptTx] = useState<SaleTransaction | null>(null);
 
-  // 3. Save to localStorage on change
+  // 3. Save into individual separated storage keys on changes
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
+    saveFarmConfig(config);
   }, [config]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(transactions));
+    saveMasterCustomers(masterCustomers);
+  }, [masterCustomers]);
+
+  useEffect(() => {
+    saveSalesTransactions(transactions);
   }, [transactions]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_HARVESTS, JSON.stringify(harvestLogs));
+    saveHarvestLogs(harvestLogs);
   }, [harvestLogs]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_STOCK, currentStockKg.toString());
+    saveStockKg(currentStockKg);
   }, [currentStockKg]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_LOSS, totalLossButir.toString());
+    saveTotalLossButir(totalLossButir);
   }, [totalLossButir]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_MUTATIONS, JSON.stringify(mutations));
+    saveMutations(mutations);
   }, [mutations]);
 
   // Total unpaid orders for header badge
@@ -214,18 +195,45 @@ export default function App() {
   };
 
   const handleImportAllData = (jsonStr: string) => {
-    const data = JSON.parse(jsonStr);
-    if (data.config) setConfig(data.config);
-    if (data.transactions) setTransactions(data.transactions);
-    if (data.harvestLogs) setHarvestLogs(data.harvestLogs);
-    if (data.mutations) setMutations(data.mutations);
-    if (data.currentStockKg !== undefined) setCurrentStockKg(data.currentStockKg);
+    try {
+      const data = JSON.parse(jsonStr);
+      if (data.config) setConfig(data.config);
+      if (data.masterCustomers) setMasterCustomers(data.masterCustomers);
+      if (data.transactions) setTransactions(data.transactions);
+      if (data.harvestLogs) setHarvestLogs(data.harvestLogs);
+      if (data.mutations) setMutations(data.mutations);
+      if (data.currentStockKg !== undefined) setCurrentStockKg(data.currentStockKg);
+      if (data.totalLossButir !== undefined) setTotalLossButir(data.totalLossButir);
+    } catch {
+      alert('Format file JSON tidak sesuai.');
+    }
+  };
+
+  // Reset a single partition without wiping other partitions!
+  const handleResetPartition = (partitionKey: string) => {
+    clearSpecificStoragePartition(partitionKey);
+
+    if (partitionKey === STORAGE_KEYS.CUSTOMERS) {
+      setMasterCustomers(DEFAULT_MASTER_CUSTOMERS);
+    } else if (partitionKey === STORAGE_KEYS.TRANSACTIONS) {
+      setTransactions(INITIAL_TRANSACTIONS);
+    } else if (partitionKey === STORAGE_KEYS.HARVESTS) {
+      setHarvestLogs(INITIAL_HARVEST_LOGS);
+    } else if (partitionKey === STORAGE_KEYS.STOCK) {
+      setCurrentStockKg(1680.0);
+    } else if (partitionKey === STORAGE_KEYS.MUTATIONS) {
+      setMutations(INITIAL_MUTATIONS);
+    } else if (partitionKey === STORAGE_KEYS.FARM_PROFILE) {
+      setConfig(INITIAL_CONFIG);
+    }
+    alert(`Partisi "${partitionKey}" telah direset ke bawaan. Data lainnya tetap aman!`);
   };
 
   const handleResetAllData = () => {
     if (confirm('Apakah Anda yakin ingin mengembalikan semua data ke template contoh awal?')) {
       localStorage.clear();
       setConfig(INITIAL_CONFIG);
+      setMasterCustomers(DEFAULT_MASTER_CUSTOMERS);
       setTransactions(INITIAL_TRANSACTIONS);
       setHarvestLogs(INITIAL_HARVEST_LOGS);
       setMutations(INITIAL_MUTATIONS);
@@ -237,11 +245,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-neutral-100/70 text-neutral-900 flex flex-col font-sans">
-      {/* 3-Zone Top Bar Contract */}
+      {/* 3-Zone Top Bar Contract with Top-Left Settings */}
       <Header
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         unpaidCount={unpaidCount}
+        config={config}
+        onUpdateConfig={setConfig}
         onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
@@ -265,6 +275,7 @@ export default function App() {
             config={config}
             currentStockKg={currentStockKg}
             transactions={transactions}
+            masterCustomers={masterCustomers}
             onCompleteSale={handleCompleteSale}
             onOpenReceipt={setReceiptTx}
           />
@@ -310,12 +321,15 @@ export default function App() {
         </p>
       </footer>
 
-      {/* Settings Modal */}
+      {/* Settings Modal with Master Customers & Separated Storage */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         config={config}
-        onSave={setConfig}
+        onSaveConfig={setConfig}
+        masterCustomers={masterCustomers}
+        onSaveCustomers={setMasterCustomers}
+        onResetPartition={handleResetPartition}
       />
 
       {/* Thermal Receipt & WhatsApp Modal */}
