@@ -1,0 +1,6 @@
+{
+  "name": "OvoTrack Pro - Sistem Inventori & Finansial Perteluran",
+  "description": "Sistem modern peternakan & distributor telur: inventori multi-satuan, kasir POS, pelacak piutang tempo, kontrol HPP dinamis, dan Hen-Day production analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
