@@ -344,3 +344,7 @@ export const INITIAL_MUTATIONS: StockMutation[] = [
     resultingStockKg: 1680,
   },
 ];
+
+/** Demo starting stock & loss counters (used on first run and on reset). */
+export const INITIAL_STOCK_KG = 1680.0;
+export const INITIAL_LOSS_BUTIR = 38;

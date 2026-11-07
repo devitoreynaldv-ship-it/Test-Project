@@ -3,6 +3,8 @@ import { Sliders, Egg } from 'lucide-react';
 import { FarmConfig } from '../types';
 import { FarmProfile } from './FarmProfile';
 
+export type TabId = 'dashboard' | 'pos' | 'piutang' | 'pelanggan' | 'warehouse' | 'mutasi';
+
 interface HeaderProps {
   currentTab: string;
   onSelectTab: (tab: string) => void;
@@ -20,17 +22,18 @@ export const Header: React.FC<HeaderProps> = ({
   onUpdateConfig,
   onOpenSettings,
 }) => {
-  const navItems = [
+  const navItems: { id: TabId; label: string; badge?: number }[] = [
     { id: 'dashboard', label: 'Ringkasan Utama' },
     { id: 'pos', label: 'Kasir & POS' },
     { id: 'piutang', label: 'Piutang & Tempo', badge: unpaidCount },
+    { id: 'pelanggan', label: 'Pelanggan' },
     { id: 'warehouse', label: 'Panen & Gudang' },
     { id: 'mutasi', label: 'Jurnal Mutasi' },
   ];
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-neutral-200">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 sm:gap-8 px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 lg:px-8">
         {/* Zone 1: Brand Wordmark & Top-Left FarmProfile Quick Access */}
         <div className="flex items-center gap-2.5 sm:gap-3 whitespace-nowrap shrink-0">
           <div
@@ -50,7 +53,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Zone 2: 4-5 Clean single-line text navigation links */}
-        <nav className="hidden md:flex items-center gap-7 text-sm font-medium">
+        <nav className="hidden xl:flex items-center gap-5 2xl:gap-7 text-sm font-medium">
           {navItems.map((item) => {
             const isActive = currentTab === item.id;
             return (
@@ -81,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={() => onSelectTab('pos')}
-            className="hidden sm:inline-flex items-center justify-center rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition whitespace-nowrap shrink-0"
+            className="hidden sm:inline-flex xl:hidden min-[1440px]:inline-flex items-center justify-center rounded-lg bg-amber-600 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-amber-700 transition whitespace-nowrap shrink-0"
           >
             + Transaksi Baru
           </button>
@@ -96,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Mobile Navigation bar */}
-      <div className="flex md:hidden overflow-x-auto border-t border-neutral-100 px-4 py-2 gap-2 scrollbar-none bg-neutral-50/70">
+      <div className="flex xl:hidden overflow-x-auto border-t border-neutral-100 px-4 py-2 gap-2 scrollbar-none bg-neutral-50/70">
         {navItems.map((item) => {
           const isActive = currentTab === item.id;
           return (

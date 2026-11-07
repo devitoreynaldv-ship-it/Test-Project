@@ -1,6 +1,12 @@
 import { CustomerMaster, FarmConfig, HarvestLog, SaleTransaction, StockMutation } from '../types';
-import { DEFAULT_CONFIG } from './eggConversions';
-import { INITIAL_CONFIG, INITIAL_HARVEST_LOGS, INITIAL_MUTATIONS, INITIAL_TRANSACTIONS } from '../data/initialData';
+import {
+  INITIAL_CONFIG,
+  INITIAL_HARVEST_LOGS,
+  INITIAL_LOSS_BUTIR,
+  INITIAL_MUTATIONS,
+  INITIAL_STOCK_KG,
+  INITIAL_TRANSACTIONS,
+} from '../data/initialData';
 
 // Modular Separate Storage Keys
 export const STORAGE_KEYS = {
@@ -51,12 +57,35 @@ export const DEFAULT_MASTER_CUSTOMERS: CustomerMaster[] = [
   },
 ];
 
+/**
+ * localStorage can throw (quota full, private mode). A failed save must never
+ * crash the cashier screen, but the user should know data wasn't persisted.
+ */
+let quotaWarned = false;
+function safeSetItem(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.error(`[OvoTrack] Gagal menyimpan ${key}`, err);
+    if (!quotaWarned) {
+      quotaWarned = true;
+      alert('Penyimpanan browser penuh / tidak tersedia. Segera ekspor backup data dari menu Jurnal Mutasi.');
+    }
+  }
+}
+
+/** Removes only OvoTrack keys — never wipe other apps sharing this origin. */
+export function clearAllOvoStorage(): void {
+  Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+}
+
 // 1. Farm Profile & Config Storage
 export function loadFarmConfig(): FarmConfig {
   const saved = localStorage.getItem(STORAGE_KEYS.FARM_PROFILE);
   if (saved) {
     try {
-      return JSON.parse(saved);
+      // Merge so fields added in newer versions get sensible defaults
+      return { ...INITIAL_CONFIG, ...JSON.parse(saved) };
     } catch {
       // fallback
     }
@@ -65,7 +94,7 @@ export function loadFarmConfig(): FarmConfig {
 }
 
 export function saveFarmConfig(config: FarmConfig): void {
-  localStorage.setItem(STORAGE_KEYS.FARM_PROFILE, JSON.stringify(config));
+  safeSetItem(STORAGE_KEYS.FARM_PROFILE, JSON.stringify(config));
 }
 
 // 2. Master Customers Storage (Separated)
@@ -74,7 +103,7 @@ export function loadMasterCustomers(): CustomerMaster[] {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     } catch {
       // fallback
     }
@@ -83,7 +112,7 @@ export function loadMasterCustomers(): CustomerMaster[] {
 }
 
 export function saveMasterCustomers(customers: CustomerMaster[]): void {
-  localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
+  safeSetItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
 }
 
 // 3. Sales & Accounts Receivable Storage (Separated)
@@ -100,7 +129,7 @@ export function loadSalesTransactions(): SaleTransaction[] {
 }
 
 export function saveSalesTransactions(transactions: SaleTransaction[]): void {
-  localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
+  safeSetItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
 }
 
 // 4. Harvest Logs Storage (Separated)
@@ -109,7 +138,8 @@ export function loadHarvestLogs(): HarvestLog[] {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length >= 10) return parsed;
+      // Any saved array is the user's real data — never swap it for demo data.
+      if (Array.isArray(parsed)) return parsed;
     } catch {
       // fallback
     }
@@ -118,7 +148,7 @@ export function loadHarvestLogs(): HarvestLog[] {
 }
 
 export function saveHarvestLogs(logs: HarvestLog[]): void {
-  localStorage.setItem(STORAGE_KEYS.HARVESTS, JSON.stringify(logs));
+  safeSetItem(STORAGE_KEYS.HARVESTS, JSON.stringify(logs));
 }
 
 // 5. Stock Physical Inventory Storage (Separated)
@@ -128,11 +158,11 @@ export function loadStockKg(): number {
     const parsed = parseFloat(saved);
     if (!isNaN(parsed)) return parsed;
   }
-  return 1680.0;
+  return INITIAL_STOCK_KG;
 }
 
 export function saveStockKg(stockKg: number): void {
-  localStorage.setItem(STORAGE_KEYS.STOCK, stockKg.toString());
+  safeSetItem(STORAGE_KEYS.STOCK, stockKg.toString());
 }
 
 // 6. Loss Egg Storage (Separated)
@@ -142,11 +172,11 @@ export function loadTotalLossButir(): number {
     const parsed = parseInt(saved);
     if (!isNaN(parsed)) return parsed;
   }
-  return 38;
+  return INITIAL_LOSS_BUTIR;
 }
 
 export function saveTotalLossButir(lossButir: number): void {
-  localStorage.setItem(STORAGE_KEYS.LOSS, lossButir.toString());
+  safeSetItem(STORAGE_KEYS.LOSS, lossButir.toString());
 }
 
 // 7. Mutations Ledger Storage (Separated)
@@ -163,7 +193,7 @@ export function loadMutations(): StockMutation[] {
 }
 
 export function saveMutations(mutations: StockMutation[]): void {
-  localStorage.setItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(mutations));
+  safeSetItem(STORAGE_KEYS.MUTATIONS, JSON.stringify(mutations));
 }
 
 // Storage Diagnostics & Partition Clear
@@ -210,6 +240,14 @@ export function getStorageStats() {
       description: 'Sisa kilogram persediaan telur di gudang',
       sizeBytes: getSizeBytes(STORAGE_KEYS.STOCK),
       status: localStorage.getItem(STORAGE_KEYS.STOCK) ? 'Tersimpan' : 'Default',
+    },
+    {
+      id: 'LOSS',
+      key: STORAGE_KEYS.LOSS,
+      name: 'Akumulasi Telur Pecah / Loss',
+      description: 'Total butir telur rusak yang tercatat',
+      sizeBytes: getSizeBytes(STORAGE_KEYS.LOSS),
+      status: localStorage.getItem(STORAGE_KEYS.LOSS) ? 'Tersimpan' : 'Default',
     },
     {
       id: 'MUTATIONS',
